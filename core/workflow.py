@@ -6,7 +6,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 # Get absolute path of package_directory
-package_directory = os.path.dirname(os.path.abspath(__file__)) + '\\'
+package_directory = os.path.dirname(os.path.abspath(__file__)).replace('core','')
 
 # Check if sgems is indeed installed 
 sgems_installed = 'sgems' in sys.modules
