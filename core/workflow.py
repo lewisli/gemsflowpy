@@ -86,8 +86,6 @@ class geostat_algo(object):
             for prop in output_props:
                 output_names.append(prop + output_suffix )
         
-        
-            
         return output_names
             
             
@@ -110,12 +108,14 @@ class geostat_algo(object):
 
 class sgems_workflow(object):
     
-    def __init__(self):
+    def __init__(self,output_dir):
+
         # Get all default algorithms
         self.available_algo = dict()
         default_files = [f for f in listdir(package_directory + 'data') \
             if isfile(join(package_directory+'data', f))]
         self.script = ''
+        self.output_dir = output_dir
 
         for algos in default_files:
             if 'default.xml' in algos:
@@ -137,8 +137,17 @@ class sgems_workflow(object):
         
         if sgems_installed is True:
             sgems.execute(cmd)
-            
+
+    def save_grid(self,grid_name,obj_name,output_name):
+
+        cmd = 'SaveGeostatGrid  ' + '::'.join([grid_name,self.output_dir+'\\'+
+            output_name,'gslib','0',obj_name])
+
+        self.script += cmd + '\n\n'
         
+        if sgems_installed is True:
+            sgems.execute(cmd)
+       
     def run_geostat_algo(self,algo_name):
         
         output_names, cmd = self.available_algo[algo_name].execute()
