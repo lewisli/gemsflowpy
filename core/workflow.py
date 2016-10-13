@@ -22,7 +22,7 @@ class geostat_algo(object):
         self.current_tree = self.default_tree
         self.current_root = self.current_tree.getroot()
         self.algo_name = self.current_root.find('algorithm').get('name')
-        print 'Read Default Values for Algo:',self.algo_name
+        #print 'Read Default Values for Algo:',self.algo_name
         
     def update_parameter(self,p_names,p_type,p_val):
         
@@ -71,13 +71,23 @@ class geostat_algo(object):
     def get_output_names(self):
         output_names = []
 
+        # for SGSIM/COSGSIM
         output_name = self.get_parameter(['Property_Name'],'value')
         if output_name is not None:
             num_realizations = int(self.get_parameter(['Nb_Realizations'],'value'))
             for i in range(0,num_realizations):
                 output_names.append(output_name + '__real' + str(i))
             return output_names
-            
+
+        # for Tetris
+        output_name = self.get_parameter(['Property'],'value')
+        if output_name is not None:
+            num_realizations = int(self.get_parameter(['Nb_Realizations'],'value'))
+            for i in range(0,num_realizations):
+                output_names.append(output_name + '__real' + str(i))
+            return output_names
+
+        # for histogram transforms
         output_name = self.get_parameter(['props'],'value')
         if output_name is not None:
             output_props = output_name.split(';')
@@ -117,6 +127,22 @@ class sgems_workflow(object):
         self.script = ''
         self.output_dir = output_dir
 
+        # Make sure output directories exist
+        if not os.path.exists(output_dir):
+            print output_dir,'does not exist'
+            os.makedirs(directory)
+
+        # Folder where depositional properties are stored
+        self.prop_dir = output_dir +'Properties\\' 
+
+        # Folder where facies maps are stored
+        self.facies_dir = output_dir + 'Facies\\'
+
+        # make directories
+        for path in [self.prop_dir,self.facies_dir]:
+            if not os.path.exists(path):
+                os.makedirs(path)
+
         for algos in default_files:
             if 'default.xml' in algos:
                 algo_name = algos.replace('_default.xml','')
@@ -152,7 +178,8 @@ class sgems_workflow(object):
         
         output_names, cmd = self.available_algo[algo_name].execute()
         self.script += cmd + '\n\n'
-        
+
+       
         # If we are running inside a sgems session
         if sgems_installed is True:
             sgems.execute(cmd)

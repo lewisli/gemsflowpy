@@ -1,4 +1,5 @@
 import sys
+import os
 import itertools
 
 from gemsflowpy.core import workflow
@@ -26,6 +27,11 @@ class cookie_cutter(object):
         # Folder to store output realizations
         self.output_path = project_path + 'Realizations\\'
 
+        # make directories
+        for path in [self.prop_dir,self.facies_dir,self.output_path]:
+            if not os.path.exists(path):
+                os.makedirs(path)
+
         self.grid_name = grid_name
         self.grid_size = grid_size
 
@@ -46,13 +52,13 @@ class cookie_cutter(object):
 
         num_header_lines = 3
 
-
         # Perform for each property type
         for prop_type in self.prop_names:
             for real in self.real_names:
             
                 prop_list = []
                 for facies_name in self.facies_names:
+                    print facies_name
                     # Iterate over properties
                     prop_name = '_'.join([facies_name,prop_type,real])
                     
@@ -85,22 +91,47 @@ class cookie_cutter(object):
                     output_fid.close()
 
 
-class porosity_perm_workflow(workflow.sgems_workflow):
+class tetris_workflow(workflow.sgems_workflow):
     def __init__(self,output_dir):
-        super(porosity_perm_workflow, self).__init__(output_dir)
-        
-    
-    def execute(self,grid_name,grid_size,porosity_ranges,perm_means,perm_variances):
-        
-        # Grid Parameters
-        num_realizations = 2
+        super(tetris_workflow, self).__init__(output_dir)
+
+    def execute(self,grid_name,grid_size,num_realizations=10):
+
+        num_facies_map = num_realizations
         
         # Step 1: Create an empty grid of size(100,100,25)
         self.create_grid(grid_name,grid_size)        
+
+        # Generate training image realizations
+        self.available_algo['TetrisTiGen'].reset()
+        self.available_algo['TetrisTiGen'].update_parameter(['Grid'],'value',grid_name)
+        self.available_algo['TetrisTiGen'].update_parameter(['Property'],'value','Facies_map')
+        self.available_algo['TetrisTiGen'].update_parameter(['Nb_Realizations'],'value',str(num_facies_map))
+
+        facies_map_names = self.run_geostat_algo('TetrisTiGen')
+
+        for facies_map in facies_map_names:
+
+            output_obj_path = 'Facies\\' + facies_map + '.sgems'
+            self.save_grid(grid_name,facies_map,output_obj_path)
+
+        return facies_map_names
+
+
+class porosity_perm_workflow(workflow.sgems_workflow):
+    def __init__(self,output_dir):
+        super(porosity_perm_workflow, self).__init__(output_dir)
+
+    def execute(self,grid_name,grid_size,porosity_ranges,perm_means,perm_variances,facies_names):
+
+        # Step 1: Create an empty grid of size(100,100,25)
+        self.create_grid(grid_name,grid_size)        
         
-        for f,(poro_range,perm_mean,perm_var) in enumerate(zip(porosity_ranges,\
-            perm_means,perm_variances)):
-                facies_name = 'facies_' + str(f+1)
+        # Grid Parameters
+        num_realizations = 1
+        
+        for f,(poro_range,perm_mean,perm_var,facies_name) in enumerate(zip(porosity_ranges,\
+            perm_means,perm_variances,facies_names)):
                 
                 # Part 2: Generate porosity realizations
                 self.available_algo['sgsim'].reset()
@@ -115,7 +146,9 @@ class porosity_perm_workflow(workflow.sgems_workflow):
                     
                 # Get porosity realization names
                 porosity_raw_names = self.run_geostat_algo('sgsim')
-                
+                if type(porosity_raw_names) is str:
+                    porosity_raw_names = [porosity_raw_names]
+
                 # Part 2: Generate permability realizations
                 permeability_raw_names = []
                 for i in range(0,num_realizations):
@@ -130,7 +163,8 @@ class porosity_perm_workflow(workflow.sgems_workflow):
                     # Get perm names
                     permeability_raw_names.append(self.run_geostat_algo(\
                         'colocated-sgsim'))
-                        
+                
+
                         
                 # Part 3: Transform Porosities to uniform distribution
                 porosity_trans_names = []
@@ -176,15 +210,26 @@ class porosity_perm_workflow(workflow.sgems_workflow):
                 perm_trans_names = self.run_geostat_algo(\
                         'trans')
 
+                # TODO: Clean up this shit
                 for i in range(0,num_realizations):
                     output_obj_name = 'Properties\\'+facies_name+'_porosity_real'+str(i) 
                     output_obj_names.append(output_obj_name)
                     
-                    self.save_grid(grid_name,porosity_trans_names[i],\
-                        output_obj_name)
+                    if num_realizations == 1:
+                        self.save_grid(grid_name,str(porosity_trans_names),\
+                            output_obj_name)
+                    else:
+                        self.save_grid(grid_name,porosity_trans_names[i],\
+                            output_obj_name)
 
                     output_obj_name = 'Properties\\'+facies_name+'_perm_real'+ str(i) 
                     output_obj_names.append(output_obj_name)
-                    self.save_grid(grid_name,perm_trans_names[i],\
-                        output_obj_name)
+                    
+                    if num_realizations == 1:
+                        self.save_grid(grid_name,str(perm_trans_names),\
+                            output_obj_name)
+                    else:
+                        self.save_grid(grid_name,perm_trans_names[i],\
+                            output_obj_name)
+
 
