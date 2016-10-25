@@ -158,9 +158,9 @@ class clay_modeling_workflow(workflow.sgems_workflow):
                 self.available_algo['trans'].update_parameter(\
                     ['ref_type_target'],'value','Gaussian')
                 self.available_algo['trans'].update_parameter(\
-                    ['LN_mean_target'],'value',str(mean))
+                    ['G_mean_target'],'value',str(mean))
                 self.available_algo['trans'].update_parameter(\
-                    ['LN_variance_target'],'value',str(var))
+                    ['G_variance_target'],'value',str(var))
                 self.available_algo['trans'].update_parameter(\
                     ['props'],'value',';'.join(clay_raw_names))
                 
