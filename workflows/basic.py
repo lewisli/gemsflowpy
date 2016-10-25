@@ -1,9 +1,8 @@
 import sys
 import os
 import itertools
-
+import numpy as np
 from gemsflowpy.core import workflow
-
 
 
 class cookie_cutter(object):
@@ -167,23 +166,90 @@ class clay_modeling_workflow(workflow.sgems_workflow):
                 clay_trans_names = self.run_geostat_algo(\
                         'trans')
 
-        for i in range(0,num_realizations):
-            output_obj_name = 'Properties\\'+facies_name+'_clay_dist_real'+str(i) 
-            output_obj_names.append(output_obj_name)
-                    
-            if num_realizations == 1:
-                self.save_grid(grid_name,str(clay_trans_names),\
-                        output_obj_name)
-            else:
-                self.save_grid(grid_name,clay_trans_names[i],\
-                        output_obj_name)
+                output_obj_names = []
+                for i in range(0,num_realizations):
 
+                    output_obj_name = 'Properties\\'+facies_name+'_clay_dist_real'+str(i) 
+                    output_obj_names.append(output_obj_name)
+                            
+                    if num_realizations == 1:
+                        self.save_grid(grid_name,str(clay_trans_names),\
+                                output_obj_name)
+                    else:
+                        self.save_grid(grid_name,clay_trans_names[i],\
+                                output_obj_name)
 
+class python_workflow(object):
+    def __init__(self,output_dir):
+        self.output_dir = output_dir
 
+    def read_sgems_files(self,file_name):
+        num_header_lines = 3
 
+        raw_input = np.genfromtxt(file_name,skip_header=num_header_lines)
 
+        return raw_input
+        
+class clay_porosity_workflow(python_workflow):
+    def __init__(self,output_dir):
+        super(clay_porosity_workflow, self).__init__(output_dir)
+        
+        
+    def execute(self,input_dir,facies_names,grid_name,grid_size):
+        for facies in facies_names:
+            facies_path = input_dir + '/' + facies
+            
+            clay_input = self.read_sgems_files(facies_path)
+            
+            output_porosity = clay_input*(-0.875) + 0.35
 
+            porosity_name = facies + '_porosity'
+            
+            porosity_path = self.output_dir + porosity_name
+            
+            # output porosity file
+            output_fid = open(porosity_path,'w');
 
+            output_fid.write(grid_name + '(' + 'x'.join(str(dim) for dim in grid_size) + ')\n')
+            output_fid.write(str(1)+'\n')
+            output_fid.write(porosity_name+'\n')
+            
+            for index, x in np.ndenumerate(output_porosity):
+                output_fid.write(str(x) + '\n')
+                
+            output_fid.close()
+            
+        
+class clay_cec_workflow(python_workflow):
+    def __init__(self,output_dir):
+        super(clay_cec_workflow, self).__init__(output_dir)
+        
+        
+    def execute(self,input_dir,facies_names,grid_name,grid_size):
+        for facies in facies_names:
+            facies_path = input_dir + '/' + facies
+            
+            clay_input = self.read_sgems_files(facies_path)
+            
+            output_cec = clay_input*(628.58) + 48.863
+
+            cec_name = facies + '_cec'
+            
+            cec_path = self.output_dir + cec_name
+            
+            # output porosity file
+            output_fid = open(cec_path,'w');
+
+            output_fid.write(grid_name + '(' + 'x'.join(str(dim) for dim in grid_size) + ')\n')
+            output_fid.write(str(1)+'\n')
+            output_fid.write(cec_name+'\n')
+            
+            for index, x in np.ndenumerate(output_cec):
+                output_fid.write(str(x) + '\n')
+                
+            output_fid.close()
+        
+        
 
 
 class porosity_perm_workflow(workflow.sgems_workflow):

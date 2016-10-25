@@ -130,7 +130,7 @@ class sgems_workflow(object):
         # Make sure output directories exist
         if not os.path.exists(output_dir):
             print output_dir,'does not exist'
-            os.makedirs(directory)
+            os.makedirs(output_dir)
 
         # Folder where depositional properties are stored
         self.prop_dir = output_dir +'Properties\\' 
