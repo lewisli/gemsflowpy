@@ -118,6 +118,74 @@ class tetris_workflow(workflow.sgems_workflow):
         return facies_map_names
 
 
+class clay_modeling_workflow(workflow.sgems_workflow):
+    def __init__(self,output_dir):
+        super(clay_modeling_workflow, self).__init__(output_dir)
+
+    def execute(self,grid_name,grid_size,clay_mean,clay_variance,facies_names,num_realizations):
+
+        # Step 1: Create a grid
+        self.create_grid(grid_name,grid_size)
+
+        # Step 2: Generate SGSIM Realization for the facies
+        for f,(mean,var,facies_name) in enumerate(zip(clay_mean,clay_variance,facies_names)):
+                self.available_algo['sgsim'].reset()
+                self.available_algo['sgsim'].update_parameter(['Grid_Name'],\
+                    'value',grid_name)
+                self.available_algo['sgsim'].update_parameter(['Property_Name'],\
+                    'value',facies_name+'_clay_dist')
+                    
+                # Set number of realizations
+                self.available_algo['sgsim'].update_parameter(['Nb_Realizations'],\
+                    'value',str(num_realizations))
+
+                 # Get clay realization names
+                clay_raw_names = self.run_geostat_algo('sgsim')
+                if type(clay_raw_names) is str:
+                    clay_raw_names = [clay_raw_names]
+
+
+                # Part 4: Transform clay to Gaussian
+                clay_trans_names = []
+                self.available_algo['trans'].reset()
+
+                self.available_algo['trans'].update_parameter(['grid'],\
+                    'value',grid_name)
+                self.available_algo['trans'].update_parameter(['props'],\
+                    'count',str(num_realizations))
+                self.available_algo['trans'].update_parameter(\
+                    ['Use_break_tie_index'],'value','0')
+                self.available_algo['trans'].update_parameter(\
+                    ['ref_type_target'],'value','Gaussian')
+                self.available_algo['trans'].update_parameter(\
+                    ['LN_mean_target'],'value',str(mean))
+                self.available_algo['trans'].update_parameter(\
+                    ['LN_variance_target'],'value',str(var))
+                self.available_algo['trans'].update_parameter(\
+                    ['props'],'value',';'.join(clay_raw_names))
+                
+                clay_trans_names = self.run_geostat_algo(\
+                        'trans')
+
+        for i in range(0,num_realizations):
+            output_obj_name = 'Properties\\'+facies_name+'_clay_dist_real'+str(i) 
+            output_obj_names.append(output_obj_name)
+                    
+            if num_realizations == 1:
+                self.save_grid(grid_name,str(clay_trans_names),\
+                        output_obj_name)
+            else:
+                self.save_grid(grid_name,clay_trans_names[i],\
+                        output_obj_name)
+
+
+
+
+
+
+
+
+
 class porosity_perm_workflow(workflow.sgems_workflow):
     def __init__(self,output_dir):
         super(porosity_perm_workflow, self).__init__(output_dir)
